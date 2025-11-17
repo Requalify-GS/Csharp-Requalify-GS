@@ -1,0 +1,6 @@
+@Requalify_CSHARP_GS_HostAddress = http://localhost:5233
+
+GET {{Requalify_CSHARP_GS_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
