@@ -9,7 +9,7 @@ namespace Requalify.Data.Mappings
         public void Configure(EntityTypeBuilder<Education> builder)
         {
             // Nome da tabela e schema
-            builder.ToTable("EDUCATION", "RM554694");
+            builder.ToTable("TB_EDUCATION", "RM554694");
 
             // Chave primária
             builder.HasKey(e => e.Id);
@@ -34,7 +34,7 @@ namespace Requalify.Data.Mappings
                    .Metadata.SetColumnName("COMPLETION_DATE");
 
             builder.Property(e => e.Certificate)
-                   .IsRequired(); // depende da sua regra
+                   .IsRequired(); 
             builder.Property(e => e.Certificate)
                    .Metadata.SetColumnName("CERTIFICATE");
 

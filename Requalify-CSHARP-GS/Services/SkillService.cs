@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Requalify.Connection;
-using Requalify.Services.Abstractions;
 using Requalify.DTOs.Requests;
+using Requalify.Exceptions;
 using Requalify.Mappers;
 using Requalify.Model;
-using Requalify.Exceptions;
+using Requalify.Services.Abstractions;
 
 namespace Requalify.Services
 {
@@ -17,7 +17,6 @@ namespace Requalify.Services
             _context = context;
         }
 
-        // CREATE
         public async Task<Skill> CreateAsync(CreateSkillRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -32,9 +31,8 @@ namespace Requalify.Services
             if (request.ProficiencyPercentage < 0 || request.ProficiencyPercentage > 100)
                 throw new SkillNotFoundException("Proficiency must be between 0 and 100.");
 
-            // Validate the UserId
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
+            var userExists = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+            if (userExists == null)
                 throw new SkillNotFoundException("The provided UserId does not exist.");
 
             var entity = request.ToEntity();
@@ -45,7 +43,16 @@ namespace Requalify.Services
             return entity;
         }
 
-        // GET SKILL BY ID
+        public async Task<IEnumerable<Skill>> GetAllAsync()
+        {
+            var skills = await _context.Skills.ToListAsync();
+
+            if (!skills.Any())
+                throw new CourseNotFoundException("No skills records found.");
+
+            return skills;
+        }
+
         public async Task<Skill> GetByIdAsync(int id)
         {
             var skill = await _context.Skills.FirstOrDefaultAsync(s => s.Id == id);
@@ -56,7 +63,6 @@ namespace Requalify.Services
             return skill;
         }
 
-        // GET SKILLS BY USER ID
         public async Task<IEnumerable<Skill>> GetByUserIdAsync(int userId)
         {
             var skills = await _context.Skills
@@ -69,7 +75,6 @@ namespace Requalify.Services
             return skills;
         }
 
-        // UPDATE
         public async Task<Skill> UpdateAsync(int id, UpdateSkillRequest request)
         {
             var skill = await _context.Skills.FirstOrDefaultAsync(s => s.Id == id);
@@ -84,7 +89,6 @@ namespace Requalify.Services
             return skill;
         }
 
-        // DELETE
         public async Task DeleteAsync(int id)
         {
             var skill = await _context.Skills.FirstOrDefaultAsync(s => s.Id == id);

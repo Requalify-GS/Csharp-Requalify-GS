@@ -1,10 +1,10 @@
-﻿using Challenge_MOTTU.Exceptions;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Requalify.DTOs.Requests;
 using Requalify.DTOs.Responses;
 using Requalify.Exceptions;
 using Requalify.Hateoas;
 using Requalify.Mappers;
+using Requalify.Services;
 using Requalify.Services.Abstractions;
 
 namespace Requalify.Controllers.v1
@@ -12,6 +12,7 @@ namespace Requalify.Controllers.v1
     /// <summary>
     /// Controller responsible for managing Courses [api/v4].
     /// </summary>
+    [ApiExplorerSettings(GroupName = "v4")]
     [ApiController]
     [ApiVersion("4.0")]
     [Route("api/v{version:apiVersion}/courses")]
@@ -24,6 +25,55 @@ namespace Requalify.Controllers.v1
         {
             _courseService = courseService;
             _linkGenerator = linkGenerator;
+        }
+
+        /// <summary>
+        /// Returns a paginated list of all courses.
+        /// </summary>
+        /// <param name="pageNumber">Page number (default = 1).</param>
+        /// <param name="pageSize">Number of items per page (default = 10).</param>
+        /// <returns>A paginated response containing courses and HATEOAS links.</returns>
+        [HttpGet]
+        [ProducesResponseType(typeof(PagedResponse<CourseResponse>), 200)]
+        public async Task<ActionResult<PagedResponse<CourseResponse>>> GetAll(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
+
+            var courses = await _courseService.GetAllAsync();
+            var totalCount = courses.Count();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var items = courses
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(s =>
+                {
+                    var response = s.ToResponse();
+                    response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id = s.Id })!, "GET");
+                    response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = s.Id })!, "PUT");
+                    response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = s.Id })!, "DELETE");
+                    return response;
+                })
+                .ToList();
+
+            var pagedResponse = new PagedResponse<CourseResponse>
+            {
+                Items = items,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                Links = new List<LinkDto>
+                {
+                    new LinkDto("self", _linkGenerator.GetPathByAction("GetAll", "Course", new { version, pageNumber, pageSize })!, "GET"),
+                    new LinkDto("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetAll", "Course", new { version, pageNumber = pageNumber + 1, pageSize })! : null, "GET"),
+                    new LinkDto("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetAll", "Course   ", new { version, pageNumber = pageNumber - 1, pageSize })! : null, "GET")
+                }
+            };
+
+            return Ok(pagedResponse);
         }
 
         /// <summary>

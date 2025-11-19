@@ -4,19 +4,19 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace Challenge_MOTTU.Controllers
 {
     /// <summary>
-    /// Controller para gerenciamento da API e Banco
+    /// Controller responsible for API and database health monitoring.
     /// </summary>
     [ApiController]
     [Route("health")]
     public class HealthController : ControllerBase
     {
         /// <summary>
-        /// Verifica o status geral da API e do banco de dados Oracle.
+        /// Checks the overall health status of the API and the Oracle database.
         /// </summary>
         /// <remarks>
-        /// Retorna o estado atual da aplicação e suas dependências (ex: conexão com o banco).
+        /// Returns the current status of the application and its dependencies (e.g., database connection).
         /// </remarks>
-        /// <returns>Status "Healthy" se tudo estiver funcionando corretamente.</returns>
+        /// <returns>Returns status "Healthy" if everything is working correctly.</returns>
         [HttpGet]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(typeof(object), 503)]

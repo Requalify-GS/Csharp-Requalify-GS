@@ -12,7 +12,11 @@ namespace Requalify.Mappers
             {
                 Nome = request.Nome,
                 Email = request.Email,
-                Senha = request.Senha
+                Senha = request.Senha,
+                Telefone = request.Telefone,
+                DataNascimento = request.DataNascimento,
+                CargoAtual = request.CargoAtual,
+                AreaInteresse = request.AreaInteresse
             };
         }
 
@@ -20,6 +24,10 @@ namespace Requalify.Mappers
         {
             entity.Nome = request.Nome;
             entity.Email = request.Email;
+            entity.Telefone = request.Telefone;
+            entity.DataNascimento = request.DataNascimento;
+            entity.CargoAtual = request.CargoAtual;
+            entity.AreaInteresse = request.AreaInteresse;
         }
 
         public static UserResponse ToResponse(this User entity)
@@ -29,6 +37,10 @@ namespace Requalify.Mappers
                 Id = entity.Id,
                 Nome = entity.Nome,
                 Email = entity.Email,
+                Telefone = entity.Telefone,
+                DataNascimento = entity.DataNascimento,
+                CargoAtual = entity.CargoAtual,
+                AreaInteresse = entity.AreaInteresse,
                 Skills = entity.Skills?.Select(s => s.ToResponse()).ToList(),
                 Courses = entity.Courses?.Select(c => c.ToResponse()).ToList(),
                 Educations = entity.Educations?.Select(e => e.ToResponse()).ToList()

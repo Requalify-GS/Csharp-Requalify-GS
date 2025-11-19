@@ -1,5 +1,4 @@
-﻿using Challenge_MOTTU.Exceptions;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Requalify.Connection;
 using Requalify.DTOs.Requests;
 using Requalify.Exceptions;
@@ -18,7 +17,6 @@ namespace Requalify.Services
             _context = context;
         }
 
-        // CREATE
         public async Task<Course> CreateAsync(CreateCourseRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Title))
@@ -33,8 +31,8 @@ namespace Requalify.Services
             if (string.IsNullOrWhiteSpace(request.Difficulty))
                 throw new CourseNotFoundException("The field Difficulty is required.");
 
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
+            var userExists = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+            if (userExists == null)
                 throw new CourseNotFoundException("The provided UserId does not exist.");
 
             var entity = request.ToEntity();
@@ -45,7 +43,6 @@ namespace Requalify.Services
             return entity;
         }
 
-        // GET BY ID
         public async Task<Course> GetByIdAsync(int id)
         {
             var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == id);
@@ -56,7 +53,16 @@ namespace Requalify.Services
             return course;
         }
 
-        // GET COURSES BY USER ID
+        public async Task<IEnumerable<Course>> GetAllAsync()
+        {
+            var courses = await _context.Courses.ToListAsync();
+
+            if (!courses.Any())
+                throw new CourseNotFoundException("No courses records found.");
+
+            return courses;
+        }
+
         public async Task<IEnumerable<Course>> GetByUserIdAsync(int userId)
         {
             var courses = await _context.Courses
@@ -69,7 +75,6 @@ namespace Requalify.Services
             return courses;
         }
 
-        // UPDATE
         public async Task<Course> UpdateAsync(int id, UpdateCourseRequest request)
         {
             var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == id);
@@ -84,7 +89,6 @@ namespace Requalify.Services
             return course;
         }
 
-        // DELETE
         public async Task DeleteAsync(int id)
         {
             var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == id);

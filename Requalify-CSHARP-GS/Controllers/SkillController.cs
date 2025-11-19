@@ -1,9 +1,10 @@
-﻿using Requalify.DTOs.Responses;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Requalify.DTOs.Requests;
+using Requalify.DTOs.Responses;
 using Requalify.Exceptions;
 using Requalify.Hateoas;
 using Requalify.Mappers;
+using Requalify.Services;
 using Requalify.Services.Abstractions;
 
 namespace Requalify.Controllers.v1
@@ -11,6 +12,7 @@ namespace Requalify.Controllers.v1
     /// <summary>
     /// Controller responsible for managing Skills [api/v2].
     /// </summary>
+    [ApiExplorerSettings(GroupName = "v2")]
     [ApiController]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/skills")]
@@ -39,7 +41,7 @@ namespace Requalify.Controllers.v1
         {
             var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
 
-            var skills = await _skillService.GetByUserIdAsync(0); // Caso queira listar todas, ajuste o service
+            var skills = await _skillService.GetAllAsync(); 
             var totalCount = skills.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
@@ -72,6 +74,52 @@ namespace Requalify.Controllers.v1
             };
 
             return Ok(pagedResponse);
+        }
+
+        /// <summary>
+        /// Returns a paginated list of all education entries of a user.
+        /// </summary>
+        [HttpGet("user/{userId}")]
+        [ProducesResponseType(typeof(PagedResponse<SkillResponse>), 200)]
+        public async Task<ActionResult<PagedResponse<SkillResponse>>> GetByUser(
+            int userId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
+
+            var skills = await _skillService.GetByUserIdAsync(userId);
+
+            var totalCount = skills.Count();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var items = skills
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(e =>
+                {
+                    var resp = e.ToResponse();
+                    resp.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Skill", new { version, id = e.Id })!, "GET");
+                    resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Skill", new { version, id = e.Id })!, "PUT");
+                    resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Skill", new { version, id = e.Id })!, "DELETE");
+                    return resp;
+                })
+                .ToList();
+
+            var paged = new PagedResponse<SkillResponse>
+            {
+                Items = items,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages
+            };
+
+            paged.AddLink("self", _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber, pageSize })!, "GET");
+            paged.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
+            paged.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
+
+            return Ok(paged);
         }
 
         /// <summary>

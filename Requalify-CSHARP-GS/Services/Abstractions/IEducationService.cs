@@ -7,6 +7,7 @@ namespace Requalify.Services.Abstractions
     {
         Task<Education> CreateAsync(CreateEducationRequest request);
         Task<Education> GetByIdAsync(int id);
+        Task<IEnumerable<Education>> GetAllAsync();
         Task<IEnumerable<Education>> GetByUserIdAsync(int userId);
         Task<Education> UpdateAsync(int id, UpdateEducationRequest request);
         Task DeleteAsync(int id);

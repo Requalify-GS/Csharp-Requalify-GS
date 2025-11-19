@@ -8,49 +8,54 @@ namespace Requalify.Data.Mappings
     {
         public void Configure(EntityTypeBuilder<User> builder)
         {
-            // Nome da tabela (TABLE, SCHEMA)
-            builder.ToTable("USER", "RM554694");
+            builder.ToTable("TB_USERS", "RM554694");
 
-            // Chave primária
             builder.HasKey(u => u.Id);
 
             builder.Property(u => u.Id)
                    .Metadata.SetColumnName("ID");
 
-            // Nome
             builder.Property(u => u.Nome)
                    .IsRequired()
-                   .HasMaxLength(100);
-            builder.Property(u => u.Nome)
+                   .HasMaxLength(100)
                    .Metadata.SetColumnName("NOME");
 
-            // Email
             builder.Property(u => u.Email)
                    .IsRequired()
-                   .HasMaxLength(200);
-            builder.Property(u => u.Email)
+                   .HasMaxLength(200)
                    .Metadata.SetColumnName("EMAIL");
 
-            // Senha
             builder.Property(u => u.Senha)
                    .IsRequired()
-                   .HasMaxLength(200); 
-            builder.Property(u => u.Senha)
+                   .HasMaxLength(200)
                    .Metadata.SetColumnName("SENHA");
 
-            // Relacionamento 1:N – User -> Educations
+            builder.Property(u => u.Telefone)
+                   .HasMaxLength(20)
+                   .Metadata.SetColumnName("TELEFONE");
+
+            builder.Property(u => u.DataNascimento)
+                   .Metadata.SetColumnName("DATA_NASCIMENTO");
+
+            builder.Property(u => u.CargoAtual)
+                   .HasMaxLength(150)
+                   .Metadata.SetColumnName("CARGO_ATUAL");
+
+            builder.Property(u => u.AreaInteresse)
+                   .HasMaxLength(150)
+                   .Metadata.SetColumnName("AREA_INTERESSE");
+
+            // Relacionamentos
             builder.HasMany(u => u.Educations)
                    .WithOne(e => e.User)
                    .HasForeignKey(e => e.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Relacionamento 1:N – User -> Skills
             builder.HasMany(u => u.Skills)
                    .WithOne(s => s.User)
                    .HasForeignKey(s => s.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Relacionamento 1:N – User -> Courses
             builder.HasMany(u => u.Courses)
                    .WithOne(c => c.User)
                    .HasForeignKey(c => c.UserId)

@@ -9,7 +9,7 @@ namespace Requalify.Data.Mappings
         public void Configure(EntityTypeBuilder<Course> builder)
         {
             // Nome da tabela e schema
-            builder.ToTable("COURSE", "RM554694");
+            builder.ToTable("TB_COURSE", "RM554694");
 
             // Chave primária
             builder.HasKey(c => c.Id);
@@ -20,41 +20,44 @@ namespace Requalify.Data.Mappings
             // Title
             builder.Property(c => c.Title)
                    .IsRequired()
-                   .HasMaxLength(100);
-            builder.Property(c => c.Title)
+                   .HasMaxLength(100)
                    .Metadata.SetColumnName("TITLE");
 
             // Description
             builder.Property(c => c.Description)
                    .IsRequired()
-                   .HasMaxLength(500);
-            builder.Property(c => c.Description)
+                   .HasMaxLength(500)
                    .Metadata.SetColumnName("DESCRIPTION");
 
             // Category
             builder.Property(c => c.Category)
                    .IsRequired()
-                   .HasMaxLength(50);
-            builder.Property(c => c.Category)
+                   .HasMaxLength(50)
                    .Metadata.SetColumnName("CATEGORY");
 
             // Difficulty
             builder.Property(c => c.Difficulty)
                    .IsRequired()
-                   .HasMaxLength(50);
-            builder.Property(c => c.Difficulty)
+                   .HasMaxLength(50)
                    .Metadata.SetColumnName("DIFFICULTY");
 
             // Url
             builder.Property(c => c.Url)
-                   .HasMaxLength(200); // opcional se URL pode ficar vazia
-            builder.Property(c => c.Url)
+                   .HasMaxLength(200)
                    .Metadata.SetColumnName("URL");
+
+            // CreatedAt
+            builder.Property(c => c.CreatedAt)
+                   .IsRequired()
+                   .Metadata.SetColumnName("CREATED_AT");
+
+            // UpdatedAt
+            builder.Property(c => c.UpdatedAt)
+                   .Metadata.SetColumnName("UPDATED_AT");
 
             // UserId (FK)
             builder.Property(c => c.UserId)
-                   .IsRequired();
-            builder.Property(c => c.UserId)
+                   .IsRequired()
                    .Metadata.SetColumnName("USER_ID");
 
             // Relacionamento 1:N com User

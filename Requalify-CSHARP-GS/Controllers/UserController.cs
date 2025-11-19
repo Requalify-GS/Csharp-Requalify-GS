@@ -11,6 +11,7 @@ namespace Requalify.Controllers
     /// <summary>
     /// Controller responsible for managing Users [api/v1].
     /// </summary>
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/users")]
@@ -34,8 +35,8 @@ namespace Requalify.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(PagedResponse<UserResponse>), 200)]
         public async Task<ActionResult<PagedResponse<UserResponse>>> GetAll(
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+      [FromQuery] int pageNumber = 1,
+      [FromQuery] int pageSize = 10)
         {
             var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
 
@@ -50,9 +51,57 @@ namespace Requalify.Controllers
                 .Select(u =>
                 {
                     var response = u.ToResponse();
-                    response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "User", new { version, id = u.Id })!, "GET");
-                    response.AddLink("update", _linkGenerator.GetPathByAction("Update", "User", new { version, id = u.Id })!, "PUT");
-                    response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "User", new { version, id = u.Id })!, "DELETE");
+
+                    // ================= USER LINKS =================
+                    response.AddLink("self", _linkGenerator.GetPathByAction(
+                        "GetById", "User", new { version, id = u.Id })!, "GET");
+
+                    response.AddLink("update", _linkGenerator.GetPathByAction(
+                        "Update", "User", new { version, id = u.Id })!, "PUT");
+
+                    response.AddLink("delete", _linkGenerator.GetPathByAction(
+                        "Delete", "User", new { version, id = u.Id })!, "DELETE");
+
+
+                    // ================= COURSE LINKS =================
+                    foreach (var course in response.Courses)
+                    {
+                        course.AddLink("self", _linkGenerator.GetPathByAction(
+                            "GetById", "Course", new { version = "4", id = course.Id })!, "GET");
+
+                        course.AddLink("update", _linkGenerator.GetPathByAction(
+                            "Update", "Course", new { version = "4", id = course.Id })!, "PUT");
+
+                        course.AddLink("delete", _linkGenerator.GetPathByAction(
+                            "Delete", "Course", new { version = "4", id = course.Id })!, "DELETE");
+                    }
+
+                    // ================= EDUCATION LINKS =================
+                    foreach (var edu in response.Educations)
+                    {
+                        edu.AddLink("self", _linkGenerator.GetPathByAction(
+                            "GetById", "Education", new { version = "3", id = edu.Id })!, "GET");
+
+                        edu.AddLink("update", _linkGenerator.GetPathByAction(
+                            "Update", "Education", new { version = "3", id = edu.Id })!, "PUT");
+
+                        edu.AddLink("delete", _linkGenerator.GetPathByAction(
+                            "Delete", "Education", new { version = "3", id = edu.Id })!, "DELETE");
+                    }
+
+                    // ================= SKILL LINKS =================
+                    foreach (var skill in response.Skills)
+                    {
+                        skill.AddLink("self", _linkGenerator.GetPathByAction(
+                            "GetById", "Skill", new { version = "2", id = skill.Id })!, "GET");
+
+                        skill.AddLink("update", _linkGenerator.GetPathByAction(
+                            "Update", "Skill", new { version = "2", id = skill.Id })!, "PUT");
+
+                        skill.AddLink("delete", _linkGenerator.GetPathByAction(
+                            "Delete", "Skill", new { version = "2", id = skill.Id })!, "DELETE");
+                    }
+
                     return response;
                 })
                 .ToList();
@@ -66,9 +115,18 @@ namespace Requalify.Controllers
                 TotalPages = totalPages
             };
 
-            pagedResponse.AddLink("self", _linkGenerator.GetPathByAction("GetAll", "User", new { version, pageNumber, pageSize })!, "GET");
-            pagedResponse.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetAll", "User", new { version, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
-            pagedResponse.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetAll", "User", new { version, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
+            pagedResponse.AddLink("self", _linkGenerator.GetPathByAction(
+                "GetAll", "User", new { version, pageNumber, pageSize })!, "GET");
+
+            pagedResponse.AddLink("next", pageNumber < totalPages
+                ? _linkGenerator.GetPathByAction("GetAll", "User",
+                    new { version, pageNumber = pageNumber + 1, pageSize })!
+                : null, "GET");
+
+            pagedResponse.AddLink("prev", pageNumber > 1
+                ? _linkGenerator.GetPathByAction("GetAll", "User",
+                    new { version, pageNumber = pageNumber - 1, pageSize })!
+                : null, "GET");
 
             return Ok(pagedResponse);
         }

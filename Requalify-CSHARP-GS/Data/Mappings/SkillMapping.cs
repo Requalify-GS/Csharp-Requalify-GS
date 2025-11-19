@@ -9,7 +9,7 @@ namespace Requalify.Data.Mappings
         public void Configure(EntityTypeBuilder<Skill> builder)
         {
             // Nome da tabela (schema + table)
-            builder.ToTable("SKILL", "RM554694");
+            builder.ToTable("TB_SKILL", "RM554694");
 
             // Chave primária
             builder.HasKey(s => s.Id);

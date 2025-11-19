@@ -1,4 +1,4 @@
-﻿namespace Challenge_MOTTU.Exceptions
+﻿namespace Requalify.Exceptions
 {
     public class EducationNotFoundException : Exception
     {
