@@ -4,6 +4,7 @@ using Requalify.DTOs.Responses;
 using Requalify.Exceptions;
 using Requalify.Hateoas;
 using Requalify.Mappers;
+using Requalify.Model;
 using Requalify.Services.Abstractions;
 
 namespace Requalify.Controllers.v1
@@ -19,11 +20,13 @@ namespace Requalify.Controllers.v1
     {
         private readonly IEducationService _educationService;
         private readonly LinkGenerator _linkGenerator;
+        private readonly ILogger _logger;
 
-        public EducationController(IEducationService educationService, LinkGenerator linkGenerator)
+        public EducationController(IEducationService educationService, LinkGenerator linkGenerator, ILogger<EducationController> logger)
         {
             _educationService = educationService;
             _linkGenerator = linkGenerator;
+            _logger = logger;
         }
 
         /// <summary>
@@ -36,9 +39,12 @@ namespace Requalify.Controllers.v1
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "3.0";
+            _logger.LogInformation("Fetching education records for UserId {userId}", userId);
 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "3.0";
             var educations = await _educationService.GetByUserIdAsync(userId);
+
+            _logger.LogInformation("{count} education entries found for UserId {userId}", educations.Count(), userId);
 
             var totalCount = educations.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -66,8 +72,6 @@ namespace Requalify.Controllers.v1
             };
 
             paged.AddLink("self", _linkGenerator.GetPathByAction("GetByUser", "Education", new { version, userId, pageNumber, pageSize })!, "GET");
-            paged.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetByUser", "Education", new { version, userId, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
-            paged.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetByUser", "Education", new { version, userId, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
 
             return Ok(paged);
         }
@@ -81,9 +85,12 @@ namespace Requalify.Controllers.v1
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "3.0";
+            _logger.LogInformation("Fetching all education entries");
 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "3.0";
             var educations = await _educationService.GetAllAsync();
+
+            _logger.LogInformation("{count} education records retrieved", educations.Count());
 
             var totalCount = educations.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -111,8 +118,6 @@ namespace Requalify.Controllers.v1
             };
 
             paged.AddLink("self", _linkGenerator.GetPathByAction("GetAll", "Education", new { version, pageNumber, pageSize })!, "GET");
-            paged.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetAll", "Education", new { version, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
-            paged.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetAll", "Education", new { version, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
 
             return Ok(paged);
         }
@@ -126,6 +131,8 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<ActionResult<EducationResponse>> GetById(int id)
         {
+            _logger.LogInformation("Fetching education entry with ID {id}", id);
+
             try
             {
                 var education = await _educationService.GetByIdAsync(id);
@@ -133,13 +140,12 @@ namespace Requalify.Controllers.v1
 
                 var resp = education.ToResponse();
                 resp.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Education", new { version, id })!, "GET");
-                resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Education", new { version, id })!, "PUT");
-                resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Education", new { version, id })!, "DELETE");
 
                 return Ok(resp);
             }
             catch (EducationNotFoundException ex)
             {
+                _logger.LogWarning("Education entry with ID {id} not found: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -151,15 +157,18 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(typeof(EducationResponse), 201)]
         public async Task<ActionResult<EducationResponse>> Create(CreateEducationRequest request)
         {
-            var result = await _educationService.CreateAsync(request);
+            _logger.LogInformation("Creating new education entry for UserId {userId}", request.UserId);
+
+            var education = await _educationService.CreateAsync(request);
             var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "3.0";
 
-            var resp = result.ToResponse();
-            resp.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Education", new { version, id = result.Id })!, "GET");
-            resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Education", new { version, id = result.Id })!, "PUT");
-            resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Education", new { version, id = result.Id })!, "DELETE");
+            _logger.LogInformation("Education entry created with ID {id}", education.Id);
 
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, resp);
+            var response = education.ToResponse();
+            response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Education", new { version, id = education.Id })!, "GET");
+            response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Education", new { version, id = education.Id })!, "PUT");
+            response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Education", new { version, id = education.Id })!, "DELETE");
+            return CreatedAtAction(nameof(GetById), new { id = education.Id }, response);
         }
 
         /// <summary>
@@ -170,6 +179,8 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Update(int id, UpdateEducationRequest request)
         {
+            _logger.LogInformation("Updating education entry with ID {id}", id);
+
             try
             {
                 await _educationService.UpdateAsync(id, request);
@@ -177,6 +188,7 @@ namespace Requalify.Controllers.v1
             }
             catch (EducationNotFoundException ex)
             {
+                _logger.LogWarning("Update failed for education ID {id}: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -189,6 +201,8 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete(int id)
         {
+            _logger.LogInformation("Deleting education entry with ID {id}", id);
+
             try
             {
                 await _educationService.DeleteAsync(id);
@@ -196,6 +210,7 @@ namespace Requalify.Controllers.v1
             }
             catch (EducationNotFoundException ex)
             {
+                _logger.LogWarning("Deletion failed for education ID {id}: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }

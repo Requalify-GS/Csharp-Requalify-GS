@@ -20,11 +20,13 @@ namespace Requalify.Controllers.v1
     {
         private readonly ISkillService _skillService;
         private readonly LinkGenerator _linkGenerator;
+        private readonly ILogger _logger;
 
-        public SkillController(ISkillService skillService, LinkGenerator linkGenerator)
+        public SkillController(ISkillService skillService, LinkGenerator linkGenerator, ILogger<SkillController> logger)
         {
             _skillService = skillService;
             _linkGenerator = linkGenerator;
+            _logger = logger;
         }
 
         /// <summary>
@@ -35,13 +37,15 @@ namespace Requalify.Controllers.v1
         /// <returns>A paginated response containing skills and HATEOAS links.</returns>
         [HttpGet]
         [ProducesResponseType(typeof(PagedResponse<SkillResponse>), 200)]
-        public async Task<ActionResult<PagedResponse<SkillResponse>>> GetAll(
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<PagedResponse<SkillResponse>>> GetAll(int pageNumber = 1, int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
+            _logger.LogInformation("GET /skills?pageNumber={page}&pageSize={size}", pageNumber, pageSize);
 
-            var skills = await _skillService.GetAllAsync(); 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
+            var skills = await _skillService.GetAllAsync();
+
+            _logger.LogInformation("{count} skills retrieved", skills.Count());
+
             var totalCount = skills.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
@@ -54,6 +58,7 @@ namespace Requalify.Controllers.v1
                     response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Skill", new { version, id = s.Id })!, "GET");
                     response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Skill", new { version, id = s.Id })!, "PUT");
                     response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Skill", new { version, id = s.Id })!, "DELETE");
+
                     return response;
                 })
                 .ToList();
@@ -64,14 +69,10 @@ namespace Requalify.Controllers.v1
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = new List<LinkDto>
-                {
-                    new LinkDto("self", _linkGenerator.GetPathByAction("GetAll", "Skill", new { version, pageNumber, pageSize })!, "GET"),
-                    new LinkDto("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetAll", "Skill", new { version, pageNumber = pageNumber + 1, pageSize })! : null, "GET"),
-                    new LinkDto("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetAll", "Skill", new { version, pageNumber = pageNumber - 1, pageSize })! : null, "GET")
-                }
+                TotalPages = totalPages
             };
+
+            pagedResponse.AddLink("self", _linkGenerator.GetPathByAction("GetAll", "Skill", new { version, pageNumber, pageSize })!, "GET");
 
             return Ok(pagedResponse);
         }
@@ -81,14 +82,14 @@ namespace Requalify.Controllers.v1
         /// </summary>
         [HttpGet("user/{userId}")]
         [ProducesResponseType(typeof(PagedResponse<SkillResponse>), 200)]
-        public async Task<ActionResult<PagedResponse<SkillResponse>>> GetByUser(
-            int userId,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<PagedResponse<SkillResponse>>> GetByUser(int userId, int pageNumber = 1, int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
+            _logger.LogInformation("GET /skills/user/{userId}", userId);
 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
             var skills = await _skillService.GetByUserIdAsync(userId);
+
+            _logger.LogInformation("{count} skills retrieved for UserId {userId}", skills.Count(), userId);
 
             var totalCount = skills.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -116,8 +117,6 @@ namespace Requalify.Controllers.v1
             };
 
             paged.AddLink("self", _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber, pageSize })!, "GET");
-            paged.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
-            paged.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetByUser", "Skill", new { version, userId, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
 
             return Ok(paged);
         }
@@ -132,6 +131,8 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<ActionResult<SkillResponse>> GetById(int id)
         {
+            _logger.LogInformation("GET /skills/{id}", id);
+
             try
             {
                 var skill = await _skillService.GetByIdAsync(id);
@@ -139,13 +140,12 @@ namespace Requalify.Controllers.v1
 
                 var response = skill.ToResponse();
                 response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Skill", new { version, id })!, "GET");
-                response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Skill", new { version, id })!, "PUT");
-                response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Skill", new { version, id })!, "DELETE");
 
                 return Ok(response);
             }
             catch (SkillNotFoundException ex)
             {
+                _logger.LogWarning("Skill {id} not found: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -160,10 +160,15 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(400)]
         public async Task<ActionResult<SkillResponse>> Create(CreateSkillRequest request)
         {
-            var skill = await _skillService.CreateAsync(request);
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
+            _logger.LogInformation("POST /skills");
 
+            var skill = await _skillService.CreateAsync(request);
+
+            _logger.LogInformation("Skill {id} created successfully", skill.Id);
+
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "2.0";
             var response = skill.ToResponse();
+
             response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Skill", new { version, id = skill.Id })!, "GET");
             response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Skill", new { version, id = skill.Id })!, "PUT");
             response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Skill", new { version, id = skill.Id })!, "DELETE");
@@ -182,13 +187,17 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Update(int id, UpdateSkillRequest request)
         {
+            _logger.LogInformation("PUT /skills/{id}", id);
+
             try
             {
                 await _skillService.UpdateAsync(id, request);
+                _logger.LogInformation("Skill {id} updated successfully", id);
                 return NoContent();
             }
             catch (SkillNotFoundException ex)
             {
+                _logger.LogWarning("Update failed for Skill {id}: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -203,13 +212,17 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete(int id)
         {
+            _logger.LogInformation("DELETE /skills/{id}", id);
+
             try
             {
                 await _skillService.DeleteAsync(id);
+                _logger.LogInformation("Skill {id} deleted successfully", id);
                 return NoContent();
             }
             catch (SkillNotFoundException ex)
             {
+                _logger.LogWarning("Delete failed for Skill {id}: {msg}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }

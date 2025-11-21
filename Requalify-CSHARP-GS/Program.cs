@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Trace;
 using Requalify.Connection;
+using Requalify.ML;
 using Requalify.Services;
 using Requalify.Services.Abstractions;
 
@@ -16,6 +19,21 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()   
+            .AddHttpClientInstrumentation()  
+            .AddEntityFrameworkCoreInstrumentation() 
+            .AddSource("Requalify")           
+            .SetSampler(new OpenTelemetry.Trace.AlwaysOnSampler())
+            .AddConsoleExporter();        
+    });
+
+builder.Services.AddSingleton(new ActivitySource("Requalify"));
+builder.Services.AddSingleton<InterestPredictionService>();
 
 // =============== HEALTH CHECKS ===============
 builder.Services.AddHealthChecks()
@@ -64,6 +82,13 @@ builder.Services.AddSwaggerGen(c =>
         Description = "Management of courses assigned to users."
     });
 
+    c.SwaggerDoc("ml", new OpenApiInfo
+    {
+        Title = "Requalify API - Machine Learning",
+        Version = "ml",
+        Description = "ML.NET prediction endpoint for professional area recommendation."
+    });
+
     // ------- TAGS PRIORITY BY VERSION -------
     c.TagActionsBy(api =>
     {
@@ -102,6 +127,10 @@ builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IEducationService, EducationService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 var app = builder.Build();
 
 // =============== SWAGGER UI ===============
@@ -114,10 +143,12 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v2/swagger.json", "Requalify API - Skills (v2)");
         c.SwaggerEndpoint("/swagger/v3/swagger.json", "Requalify API - Education (v3)");
         c.SwaggerEndpoint("/swagger/v4/swagger.json", "Requalify API - Courses (v4)");
+        c.SwaggerEndpoint("/swagger/ml/swagger.json", "Requalify API - Machine Learning (ml)");
 
         c.RoutePrefix = string.Empty;
         c.DocumentTitle = "Requalify API - Reskilling AI";
     });
+
 }
 
 // =============== HEALTHCHECK ENDPOINT ===============

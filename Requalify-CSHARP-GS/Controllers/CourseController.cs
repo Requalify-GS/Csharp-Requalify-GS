@@ -4,6 +4,7 @@ using Requalify.DTOs.Responses;
 using Requalify.Exceptions;
 using Requalify.Hateoas;
 using Requalify.Mappers;
+using Requalify.Model;
 using Requalify.Services;
 using Requalify.Services.Abstractions;
 
@@ -20,11 +21,13 @@ namespace Requalify.Controllers.v1
     {
         private readonly ICourseService _courseService;
         private readonly LinkGenerator _linkGenerator;
+        private readonly ILogger _logger;
 
-        public CourseController(ICourseService courseService, LinkGenerator linkGenerator)
+        public CourseController(ICourseService courseService, LinkGenerator linkGenerator, ILogger<CourseController> logger)
         {
             _courseService = courseService;
             _linkGenerator = linkGenerator;
+            _logger = logger;
         }
 
         /// <summary>
@@ -39,41 +42,41 @@ namespace Requalify.Controllers.v1
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
+            _logger.LogInformation("Fetching all courses with pagination: page {pageNumber}, size {pageSize}", pageNumber, pageSize);
 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
             var courses = await _courseService.GetAllAsync();
+
+            _logger.LogInformation("{count} courses retrieved", courses.Count());
+
             var totalCount = courses.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
             var items = courses
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(s =>
+                .Select(c =>
                 {
-                    var response = s.ToResponse();
-                    response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id = s.Id })!, "GET");
-                    response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = s.Id })!, "PUT");
-                    response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = s.Id })!, "DELETE");
+                    var response = c.ToResponse();
+                    response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id = c.Id })!, "GET");
+                    response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = c.Id })!, "PUT");
+                    response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = c.Id })!, "DELETE");
                     return response;
                 })
                 .ToList();
 
-            var pagedResponse = new PagedResponse<CourseResponse>
+            var paged = new PagedResponse<CourseResponse>
             {
                 Items = items,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = new List<LinkDto>
-                {
-                    new LinkDto("self", _linkGenerator.GetPathByAction("GetAll", "Course", new { version, pageNumber, pageSize })!, "GET"),
-                    new LinkDto("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetAll", "Course", new { version, pageNumber = pageNumber + 1, pageSize })! : null, "GET"),
-                    new LinkDto("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetAll", "Course   ", new { version, pageNumber = pageNumber - 1, pageSize })! : null, "GET")
-                }
+                TotalPages = totalPages
             };
 
-            return Ok(pagedResponse);
+            paged.AddLink("self", _linkGenerator.GetPathByAction("GetAll", "Course", new { version, pageNumber, pageSize })!, "GET");
+
+            return Ok(paged);
         }
 
         /// <summary>
@@ -89,9 +92,12 @@ namespace Requalify.Controllers.v1
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
+            _logger.LogInformation("Fetching courses for userId {userId}", userId);
 
+            var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
             var courses = await _courseService.GetByUserIdAsync(userId);
+
+            _logger.LogInformation("{count} courses found for userId {userId}", courses.Count(), userId);
 
             var totalCount = courses.Count();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -106,7 +112,8 @@ namespace Requalify.Controllers.v1
                     resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = c.Id })!, "PUT");
                     resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = c.Id })!, "DELETE");
                     return resp;
-                }).ToList();
+                })
+                .ToList();
 
             var paged = new PagedResponse<CourseResponse>
             {
@@ -118,8 +125,6 @@ namespace Requalify.Controllers.v1
             };
 
             paged.AddLink("self", _linkGenerator.GetPathByAction("GetByUser", "Course", new { version, userId, pageNumber, pageSize })!, "GET");
-            paged.AddLink("next", pageNumber < totalPages ? _linkGenerator.GetPathByAction("GetByUser", "Course", new { version, userId, pageNumber = pageNumber + 1, pageSize })! : null, "GET");
-            paged.AddLink("prev", pageNumber > 1 ? _linkGenerator.GetPathByAction("GetByUser", "Course", new { version, userId, pageNumber = pageNumber - 1, pageSize })! : null, "GET");
 
             return Ok(paged);
         }
@@ -132,20 +137,23 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<ActionResult<CourseResponse>> GetById(int id)
         {
+            _logger.LogInformation("Fetching course with id {id}", id);
+
             try
             {
                 var course = await _courseService.GetByIdAsync(id);
                 var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
 
-                var response = course.ToResponse();
-                response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id })!, "GET");
-                response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id })!, "PUT");
-                response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id })!, "DELETE");
+                var resp = course.ToResponse();
+                resp.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id })!, "GET");
+                resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id })!, "PUT");
+                resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id })!, "DELETE");
 
-                return Ok(response);
+                return Ok(resp);
             }
             catch (CourseNotFoundException ex)
             {
+                _logger.LogWarning("Course id {id} not found: {message}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -157,16 +165,18 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(typeof(CourseResponse), 201)]
         public async Task<ActionResult<CourseResponse>> Create(CreateCourseRequest request)
         {
-            var course = await _courseService.CreateAsync(request);
+            _logger.LogInformation("Creating a new course for userId {userId}", request.UserId);
 
+            var course = await _courseService.CreateAsync(request);
             var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "4.0";
 
-            var resp = course.ToResponse();
-            resp.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id = course.Id })!, "GET");
-            resp.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = course.Id })!, "PUT");
-            resp.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = course.Id })!, "DELETE");
+            _logger.LogInformation("Course created successfully with id {id}", course.Id);
 
-            return CreatedAtAction(nameof(GetById), new { id = course.Id }, resp);
+            var response = course.ToResponse();
+            response.AddLink("self", _linkGenerator.GetPathByAction("GetById", "Course", new { version, id = course.Id })!, "GET");
+            response.AddLink("update", _linkGenerator.GetPathByAction("Update", "Course", new { version, id = course.Id })!, "PUT");
+            response.AddLink("delete", _linkGenerator.GetPathByAction("Delete", "Course", new { version, id = course.Id })!, "DELETE");
+            return CreatedAtAction(nameof(GetById), new { id = course.Id }, response);
         }
 
         /// <summary>
@@ -177,13 +187,17 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Update(int id, UpdateCourseRequest request)
         {
+            _logger.LogInformation("Updating course with id {id}", id);
+
             try
             {
                 await _courseService.UpdateAsync(id, request);
+                _logger.LogInformation("Course id {id} updated successfully", id);
                 return NoContent();
             }
             catch (CourseNotFoundException ex)
             {
+                _logger.LogWarning("Course update failed for id {id}: {message}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
@@ -196,13 +210,17 @@ namespace Requalify.Controllers.v1
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete(int id)
         {
+            _logger.LogInformation("Deleting course with id {id}", id);
+
             try
             {
                 await _courseService.DeleteAsync(id);
+                _logger.LogInformation("Course id {id} deleted successfully", id);
                 return NoContent();
             }
             catch (CourseNotFoundException ex)
             {
+                _logger.LogWarning("Course deletion failed for id {id}: {message}", id, ex.Message);
                 return NotFound(ex.Message);
             }
         }
