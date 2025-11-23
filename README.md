@@ -443,7 +443,7 @@ dotnet test -c Release
 ## Rodar apenas um projeto de testes
 dotnet test ./Requalify.Tests/Requalify.Tests.csproj -c Release
 
-# COMO RODAR O PROJETO
+## COMO RODAR O PROJETO
 Abra o projeto no Visual Studio.
 
 Configure a string de conexão com o banco de dados no arquivo appsettings.json.
